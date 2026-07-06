@@ -1,0 +1,13 @@
+[project]
+name = "DeerSignCalendar"
+version = "0.1.0"
+description = "GsCore 鹿签日历插件"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+dependencies = [
+    "httpx>=0.24.0",
+    "jinja2>=3.1.0",
+    "playwright>=1.40.0",
+    "pillow>=10.0.0",
+]

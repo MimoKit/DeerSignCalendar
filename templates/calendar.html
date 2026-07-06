@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>签到日历</title>
+  <style>
+    :root {
+      --accent: #34c98f;
+      --weekend: #ff7a8a;
+      --today: #5b8def;
+      --gold: #ffb86b;
+      --ink: #2d3344;
+      --muted: #6b7280;
+      --tile-bg: linear-gradient(135deg, #f1f0ff 0%, #eaf6ff 100%);
+      --chip-bg: rgba(255, 255, 255, 0.72);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+      background: transparent;
+    }
+
+    /* 背景图是全局图：铺满整张卡片（头部+卡身），不局限在某一块区域；
+       卡片宽度按背景图宽高比由 Python 算好传进来，不固定卡死同一个尺寸 */
+    .container {
+      border-radius: 30px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #8b7ee8 0%, #c08ce0 50%, #f0a6c4 100%);
+      background-size: cover;
+      background-position: center top;
+      box-shadow: 0 20px 44px rgba(31, 41, 68, 0.18);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------- 头部：浮在全局背景图上，文字靠多层描边阴影保证可读 ---------- */
+
+    .banner {
+      position: relative;
+      padding: 32px 40px 26px;
+      min-height: 158px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      color: #fff;
+    }
+
+    .banner-top {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .avatar-frame {
+      flex: none;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffe08a, #ff8aae);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+    }
+
+    .avatar-frame .avatar {
+      width: 67px;
+      height: 67px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #fff;
+      display: block;
+    }
+
+    .avatar-frame::after {
+      content: '?';
+      position: absolute;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      opacity: 0;
+    }
+
+    .avatar-frame.fallback .avatar {
+      opacity: 0;
+    }
+
+    .avatar-frame.fallback::after {
+      opacity: 1;
+    }
+
+    /* 标题文字用多层描边阴影（而不是整块蒙版），不管背景图是深色还是浅色都能看清 */
+    .title {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #fff;
+      text-shadow:
+        0 0 8px rgba(0, 0, 0, 0.55),
+        1px 1px 2px rgba(0, 0, 0, 0.75),
+        -1px -1px 2px rgba(0, 0, 0, 0.75),
+        1px -1px 2px rgba(0, 0, 0, 0.75),
+        -1px 1px 2px rgba(0, 0, 0, 0.75);
+    }
+
+    .subtitle {
+      font-size: 14px;
+      margin-top: 6px;
+      color: #fff;
+      text-shadow:
+        0 0 6px rgba(0, 0, 0, 0.5),
+        1px 1px 2px rgba(0, 0, 0, 0.7),
+        -1px -1px 2px rgba(0, 0, 0, 0.7);
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.32);
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ffe08a, var(--gold));
+    }
+
+    .progress-text {
+      flex: none;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      text-shadow:
+        0 0 6px rgba(0, 0, 0, 0.5),
+        1px 1px 2px rgba(0, 0, 0, 0.7),
+        -1px -1px 2px rgba(0, 0, 0, 0.7);
+    }
+
+    /* ---------- 卡身：本身透明，全局背景图从这里继续往下铺，缝隙处可以看到图 ---------- */
+
+    .body {
+      padding: 22px 36px 26px;
+    }
+
+    .weekday-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 14px;
+      background: var(--chip-bg);
+      backdrop-filter: blur(8px);
+      border-radius: 14px;
+      padding: 8px 4px;
+      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.08);
+    }
+
+    .weekday-cell {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .weekday-cell.weekend {
+      color: var(--weekend);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 12px;
+    }
+
+    .day-cell {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(20, 20, 40, 0.12);
+    }
+
+    .day-cell.empty {
+      visibility: hidden;
+      box-shadow: none;
+    }
+
+    .day-cell.today {
+      outline: 3px solid var(--today);
+      outline-offset: 1px;
+    }
+
+    .day-cell.signed .day-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .day-cell.signed .cell-shade {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 38%;
+      background: linear-gradient(180deg, rgba(15, 20, 35, 0) 0%, rgba(15, 20, 35, 0.62) 100%);
+    }
+
+    .day-cell.signed .day-num {
+      position: absolute;
+      left: 8px;
+      bottom: 6px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    .check-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 2px 6px rgba(52, 201, 143, 0.55);
+      z-index: 2;
+    }
+
+    .check-badge::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .day-cell.unsigned {
+      background: var(--tile-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .day-cell.unsigned .day-bg {
+      width: 56%;
+      height: 56%;
+      object-fit: contain;
+      opacity: 0.92;
+    }
+
+    .day-cell.unsigned .day-num {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 6px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .footer-card {
+      margin-top: 18px;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(6px);
+      border-radius: 14px;
+      padding: 12px 20px;
+      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.03);
+      text-align: center;
+    }
+
+    .stats-line {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .stats-line strong {
+      color: var(--accent);
+      font-size: 16px;
+    }
+
+    .footer {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(45, 51, 68, 0.04);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div
+    class="container"
+    style="width: {{ container_width or 820 }}px;{% if container_height %} height: {{ container_height }}px;{% endif %}{% if bg_image %} background-image: url('{{ bg_image }}');{% endif %}"
+  >
+    <div class="banner"{% if container_height %} style="min-height: 38%;"{% endif %}>
+      <div class="banner-top">
+        <div class="avatar-frame">
+          <img
+            class="avatar"
+            src="{{ avatar_url }}"
+            alt="头像"
+            onerror="this.parentElement.classList.add('fallback')"
+          />
+        </div>
+        <div>
+          <div class="title">{{ title }}</div>
+          <div class="subtitle">开盲盒集图鉴 · 每签到一天解锁一张</div>
+        </div>
+      </div>
+      <div class="progress-row">
+        <div class="progress-track">
+          <div class="progress-fill" style="width: {{ (signed_count / days_in_month * 100) if days_in_month else 0 }}%;"></div>
+        </div>
+        <div class="progress-text">已签 {{ signed_count }} / {{ days_in_month }} 天</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="weekday-row">
+        <div class="weekday-cell">一</div>
+        <div class="weekday-cell">二</div>
+        <div class="weekday-cell">三</div>
+        <div class="weekday-cell">四</div>
+        <div class="weekday-cell">五</div>
+        <div class="weekday-cell weekend">六</div>
+        <div class="weekday-cell weekend">日</div>
+      </div>
+
+      <div class="calendar-grid">
+        {% for cell in cells %}
+        {% if cell.day == 0 %}
+        <div class="day-cell empty"></div>
+        {% elif cell.signed %}
+        <div class="day-cell signed{% if cell.is_today %} today{% endif %}">
+          <img class="day-bg" src="{{ cell.img }}" alt="" />
+          <div class="cell-shade"></div>
+          <div class="check-badge"></div>
+          <div class="day-num">{{ cell.day }}</div>
+        </div>
+        {% else %}
+        <div class="day-cell unsigned{% if cell.is_today %} today{% endif %}">
+          <img class="day-bg" src="{{ cell.img }}" alt="" />
+          <div class="day-num">{{ cell.day }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="footer-card">
+        <div class="stats-line">
+          {{ days_in_month }} 天中已签到 <strong>{{ signed_count }}</strong> 天
+        </div>
+        <div class="footer">
+          Powered by 娜娜莉 · site.nnlmc.top
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

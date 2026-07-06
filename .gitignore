@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 运行时数据
+sign_state.json
+pending_uploads/
+
+# 旧版插件目录背景图；保留目录，不提交图片资源
+sign-bj/*
+!sign-bj/.gitkeep
+
+# 临时文件
+*.tmp
+*.bak
+docs/*preview*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
