@@ -5,7 +5,7 @@
       {
         "name": "每日鹿签",
         "desc": "一声鹿响，今日盲盒开整；已签过会直接甩出日历。",
-        "eg": "🦌",
+        "eg": "鹿",
         "need_ck": false,
         "need_sk": false,
         "need_admin": false
@@ -13,7 +13,7 @@
       {
         "name": "鹿签日历",
         "desc": "看看这个月哪几天已经被鹿支配。",
-        "eg": "🦌日历 / 签到日历",
+        "eg": "鹿日历 / 签到日历",
         "need_ck": false,
         "need_sk": false,
         "need_admin": false
@@ -21,7 +21,7 @@
       {
         "name": "补鹿一下",
         "desc": "昨天忘鹿？补一下，鹿门永存。",
-        "eg": "🦌补签 5",
+        "eg": "补签 5",
         "need_ck": false,
         "need_sk": false,
         "need_admin": false
@@ -42,7 +42,7 @@
       {
         "name": "本月全鹿",
         "desc": "一键把本月签满，直接进入全勤鹿王形态。",
-        "eg": "🦌满",
+        "eg": "鹿满",
         "need_ck": false,
         "need_sk": false,
         "need_admin": true
