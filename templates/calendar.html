@@ -28,7 +28,7 @@
     }
 
     /* 背景图是全局图：铺满整张卡片（头部+卡身），不局限在某一块区域；
-       卡片宽度按背景图宽高比由 Python 算好传进来，不固定卡死同一个尺寸 */
+       卡片宽度固定，background-size: cover 自动裁剪适配 */
     .container {
       border-radius: 30px;
       overflow: hidden;
@@ -81,22 +81,7 @@
       display: block;
     }
 
-    .avatar-frame::after {
-      content: '?';
-      position: absolute;
-      font-size: 28px;
-      font-weight: 800;
-      color: #fff;
-      opacity: 0;
-    }
-
-    .avatar-frame.fallback .avatar {
-      opacity: 0;
-    }
-
-    .avatar-frame.fallback::after {
-      opacity: 1;
-    }
+    /* 头像加载失败时回退到内置默认头像，由 onerror 直接替换 src */
 
     /* 标题文字用多层描边阴影（而不是整块蒙版），不管背景图是深色还是浅色都能看清 */
     .title {
@@ -285,17 +270,17 @@
 
     .footer-card {
       margin-top: 18px;
-      background: rgba(255, 255, 255, 0.18);
-      backdrop-filter: blur(6px);
+      background: rgba(255, 255, 255, 0.55);
+      backdrop-filter: blur(8px);
       border-radius: 14px;
-      padding: 12px 20px;
-      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.03);
+      padding: 14px 20px;
+      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.06);
       text-align: center;
     }
 
     .stats-line {
       font-size: 13px;
-      color: var(--muted);
+      color: var(--ink);
     }
 
     .stats-line strong {
@@ -306,7 +291,7 @@
     .footer {
       margin-top: 8px;
       padding-top: 8px;
-      border-top: 1px solid rgba(45, 51, 68, 0.04);
+      border-top: 1px solid rgba(45, 51, 68, 0.12);
       font-size: 11px;
       letter-spacing: 0.04em;
       color: var(--muted);
@@ -316,16 +301,16 @@
 <body>
   <div
     class="container"
-    style="width: {{ container_width or 820 }}px;{% if container_height %} height: {{ container_height }}px;{% endif %}{% if bg_image %} background-image: url('{{ bg_image }}');{% endif %}"
+    style="width: {{ container_width or 820 }}px;{% if bg_image %} background-image: url('{{ bg_image }}');{% endif %}"
   >
-    <div class="banner"{% if container_height %} style="min-height: 38%;"{% endif %}>
+    <div class="banner">
       <div class="banner-top">
         <div class="avatar-frame">
           <img
             class="avatar"
             src="{{ avatar_url }}"
             alt="头像"
-            onerror="this.parentElement.classList.add('fallback')"
+            onerror="this.onerror=null; this.src='{{ default_avatar }}';"
           />
         </div>
         <div>

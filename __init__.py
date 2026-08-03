@@ -23,7 +23,6 @@ from gsuid_core.sv import Plugins, SV
 
 from . import help  # noqa: F401 - 加载帮助模块
 from .deer_config import DeerSignConfig
-from .paths import BACKGROUND_DIR, get_background_image_paths, image_mime
 
 try:
     from playwright.async_api import async_playwright
@@ -41,7 +40,9 @@ BASE_DIR = Path(__file__).parent
 TEMPLATE_ROOT = BASE_DIR / 'templates'
 STATE_PATH = BASE_DIR / 'sign_state.json'
 SIGN_IMAGES_DIR = BASE_DIR / 'sign_images'
-BG_IMAGES_DIR = BACKGROUND_DIR
+
+# 远程背景图 API
+REMOTE_BG_URL = 'https://t.alcy.cc/mp'
 
 sign_templates = Environment(
     loader=FileSystemLoader([str(TEMPLATE_ROOT)]),
@@ -49,7 +50,19 @@ sign_templates = Environment(
 )
 
 QQ_AVATAR_URL = 'http://q1.qlogo.cn/g?b=qq&nk={qid}&s=640'
+QQGROUP_AVATAR_URL = 'https://q.qlogo.cn/qqapp/{bot_id}/{uid}/100'
 _STATE_LOCK = asyncio.Lock()
+
+
+def _get_avatar_url(ev: Event) -> str:
+    """根据 bot 平台获取用户头像 URL。
+
+    onebot（普通 QQ 机器人）走 q1.qlogo.cn；
+    qqgroup（QQ 官方机器人）走 q.qlogo.cn/qqapp，需要带上 bot_self_id。
+    """
+    if ev.bot_id == 'qqgroup':
+        return QQGROUP_AVATAR_URL.format(bot_id=ev.bot_self_id, uid=ev.user_id)
+    return QQ_AVATAR_URL.format(qid=ev.user_id)
 
 # 盲盒 SVG - 圆润可爱盲盒风格
 MYSTERY_BOX_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -96,16 +109,37 @@ def _get_mystery_box_data_uri() -> str:
     return f'data:image/svg+xml;base64,{b64}'
 
 
+# 默认头像 SVG — 鹿主题，QQ 官方机器人等无法获取头像时自动回退
+DEFAULT_AVATAR_SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="avBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c08ce0"/>
+      <stop offset="100%" style="stop-color:#8b7ee8"/>
+    </linearGradient>
+    <linearGradient id="avBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#f0e6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="60" fill="url(#avBg)"/>
+  <path d="M42 38 L36 22 L31 30 M42 38 L47 22 L52 30 M78 38 L84 22 L89 30 M78 38 L73 22 L68 30"
+        stroke="#fff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+  <ellipse cx="60" cy="58" rx="24" ry="22" fill="url(#avBody)"/>
+  <circle cx="51" cy="55" r="3.5" fill="#4c1d95"/>
+  <circle cx="69" cy="55" r="3.5" fill="#4c1d95"/>
+  <ellipse cx="60" cy="66" rx="4" ry="3" fill="#e9a0c0"/>
+  <path d="M52 70 Q60 76 68 70" stroke="#4c1d95" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M30 110 Q60 78 90 110" fill="url(#avBody)"/>
+</svg>'''
+
+
+def _get_default_avatar_uri() -> str:
+    b64 = base64.b64encode(DEFAULT_AVATAR_SVG.encode('utf-8')).decode('ascii')
+    return f'data:image/svg+xml;base64,{b64}'
+
+
 CONTAINER_WIDTH_DEFAULT = 820
-CONTAINER_WIDTH_MIN = 620
 CONTAINER_WIDTH_MAX = 980
-
-
-def _container_width_for_aspect(aspect_ratio: float) -> int:
-    """根据背景图宽高比算一个卡片宽度，避免所有图片都被硬塞进同一个 820px 的框里。
-    用 0.35 次幂压一下缩放幅度，竖图也能按比例变窄、横图变宽，又不会让 7 列格子挤得太小。"""
-    width = CONTAINER_WIDTH_DEFAULT * (aspect_ratio ** 0.35)
-    return round(max(CONTAINER_WIDTH_MIN, min(CONTAINER_WIDTH_MAX, width)))
 
 
 def _dedupe_image_paths_by_content(images: list[Path], label: str) -> list[Path]:
@@ -125,49 +159,6 @@ def _dedupe_image_paths_by_content(images: list[Path], label: str) -> list[Path]
     return deduped
 
 
-def _background_identity(image: Path) -> str:
-    """生成背景图稳定标识。
-
-    这里不能读取整张图片计算内容 hash：
-    官服的 XWUID 面板图目录可能是 SSHFS 远程挂载，逐张读文件会造成大量网络下载。
-    用路径 + 文件大小 + 修改时间即可满足“本月每次尽量换不同背景”的历史记录需求。
-    """
-    try:
-        stat = image.stat()
-        return f'{image}|{stat.st_size}|{stat.st_mtime_ns}'
-    except Exception:
-        return str(image)
-
-
-def _dedupe_background_candidates(images: list[Path]) -> list[tuple[Path, str]]:
-    """返回按文件标识去重后的背景候选。
-
-    注意：只做目录项 / stat 级别的轻量去重，不读取图片内容，避免远程挂载目录产生大流量。
-    """
-    candidates: list[tuple[Path, str]] = []
-    seen_identities: set[str] = set()
-    for image in images:
-        identity = _background_identity(image)
-        if identity in seen_identities:
-            continue
-        seen_identities.add(identity)
-        candidates.append((image, identity))
-    return candidates
-
-
-def _background_no_repeat_enabled() -> bool:
-    try:
-        value = DeerSignConfig.get_config('DeerNoRepeatImage').data
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str):
-            return value.strip().lower() in {'1', 'true', 'yes', 'on', '开启', '开'}
-        return bool(value)
-    except Exception as e:
-        logger.warning(f'[鹿签日历] 读取背景图不重复配置失败，使用默认关闭: {e}')
-        return False
-
-
 def _external_render_url() -> str:
     """读取外置渲染地址；留空或格式不对时返回空串，走本地 Playwright。"""
     try:
@@ -185,108 +176,23 @@ def _external_render_url() -> str:
     return url
 
 
-def _select_background_image(
-    user_key: str,
-    year: int,
-    month: int,
-    day: int,
-    candidates: list[tuple[Path, str]],
-    state: Dict[str, Any],
-    advance: bool,
-) -> Path:
-    if not candidates:
-        raise ValueError('empty background candidates')
+async def _get_remote_background() -> str:
+    """从远程 API 获取随机背景图，返回 base64 data URI。
 
-    if _background_no_repeat_enabled() and advance:
-        month_key = f'{year}-{month:02d}'
-        history_root = state.setdefault('_background_history', {})
-        user_history = history_root.setdefault(user_key, {})
-        month_history = user_history.setdefault(month_key, {})
-
-        current_digests = {digest for _, digest in candidates}
-        used = [
-            digest
-            for digest in month_history.get('used', [])
-            if isinstance(digest, str) and digest in current_digests
-        ]
-        if len(used) >= len(candidates):
-            used = []
-
-        order = list(range(len(candidates)))
-        rng = random.Random(f'bg-order-{user_key}-{year}-{month}')
-        rng.shuffle(order)
-
-        used_set = set(used)
-        chosen_index = order[0]
-        for idx in order:
-            if candidates[idx][1] not in used_set:
-                chosen_index = idx
-                break
-
-        chosen, digest = candidates[chosen_index]
-        used.append(digest)
-        month_history['used'] = used
-        month_history['pool_size'] = len(candidates)
-        return chosen
-
-    rng = random.Random(f'bg-{user_key}-{year}-{month}-{day}')
-    return rng.choice([path for path, _ in candidates])
-
-
-def _get_bg_image_data_uri(
-    user_key: str,
-    year: int,
-    month: int,
-    day: int,
-    state: Dict[str, Any],
-    advance: bool,
-) -> tuple[str, int, Optional[int]]:
-    """从本地背景图/面板图目录选一张背景图，转为 base64 data URI；
-    同时按图片真实宽高比算出卡片宽度，并把卡片高度也锁定成 width / 图片宽高比，
-    让卡片本身的宽高比和图片完全一致——这样 background-size: cover 不需要裁掉任何部分，
-    整张图都能完整放进卡片里（日历内容只占卡片上半部分，下面继续露出背景图）。
-
-    默认按"用户+日期"做种子选图。
-    如果控制台开启「背景图不重复」，则同一用户同月每次渲染都会优先取一张没用过的背景图；
-    这只写入独立的背景历史，不改变签到日期结果。
-
-    背景读取顺序：
-    1. data/DeerSignCalendar/sign-bj 下用户手动放入的背景图；
-    2. 如果上面为空，则按今日老婆 local 模式读取本机 XWUID 用户上传面板图。
-    不读取 XWUID 默认立绘目录，避免默认立绘混进背景池。"""
-    candidates = _dedupe_background_candidates(
-        sorted(get_background_image_paths(), key=lambda p: str(p).lower()),
-    )
-    if not candidates:
-        return '', CONTAINER_WIDTH_DEFAULT, None
-    chosen = _select_background_image(
-        user_key,
-        year,
-        month,
-        day,
-        candidates,
-        state,
-        advance,
-    )
+    与 GsStatus 插件相同，使用 https://t.alcy.cc/mp 获取每日随机背景图。
+    请求失败时返回空字符串，模板将回退到 CSS 默认渐变背景。
+    """
     try:
-        data = chosen.read_bytes()
-        b64 = base64.b64encode(data).decode('ascii')
-        mime = image_mime(chosen)
-        container_width = CONTAINER_WIDTH_DEFAULT
-        container_height: Optional[int] = None
-        try:
-            from PIL import Image
-            with Image.open(chosen) as img:
-                w, h = img.size
-            if w > 0 and h > 0:
-                aspect_ratio = w / h
-                container_width = _container_width_for_aspect(aspect_ratio)
-                container_height = round(container_width / aspect_ratio)
-        except Exception as e:
-            logger.warning(f'[鹿签日历] 读取背景图尺寸失败，使用默认宽度: {e}')
-        return f'data:{mime};base64,{b64}', container_width, container_height
-    except Exception:
-        return '', CONTAINER_WIDTH_DEFAULT, None
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            response = await client.get(REMOTE_BG_URL)
+            response.raise_for_status()
+        content_type = response.headers.get('content-type', 'image/jpeg')
+        mime = content_type.split(';', 1)[0]
+        encoded = base64.b64encode(response.content).decode('ascii')
+        return f'data:{mime};base64,{encoded}'
+    except Exception as e:
+        logger.warning(f'[鹿签日历] 获取远程背景图失败: {e}')
+        return ''
 
 
 def _scan_sign_images() -> List[Path]:
@@ -387,10 +293,9 @@ def _do_sign(state: Dict[str, Any], user_key: str, month_key: str, day: int) -> 
         signs.sort()
 
 
-def _build_calendar_context(
+async def _build_calendar_context(
     ev: Event,
     state: Dict[str, Any],
-    advance_background: bool = False,
 ) -> Dict[str, Any]:
     now = datetime.now()
     year = now.year
@@ -401,10 +306,9 @@ def _build_calendar_context(
 
     days_in_month = calendar.monthrange(year, month)[1]
     first_weekday = calendar.monthrange(year, month)[0]
-    # 周一为第一列，first_weekday 已经是 0=周一，直接用
     first_day_offset = first_weekday
 
-    avatar_url = QQ_AVATAR_URL.format(qid=ev.user_id)
+    avatar_url = _get_avatar_url(ev)
     mystery_box = _get_mystery_box_data_uri()
     images = _scan_sign_images()
     shuffle_seed = state.get('_shuffle_seed', 0)
@@ -421,21 +325,15 @@ def _build_calendar_context(
             cells.append({'day': day, 'signed': False, 'img': mystery_box, 'is_today': is_today})
 
     title = f'{year}-{month:02d} 签到日历'
-    bg_image, container_width, container_height = _get_bg_image_data_uri(
-        user_key,
-        year,
-        month,
-        now.day,
-        state,
-        advance_background,
-    )
+    bg_image = await _get_remote_background()
+    default_avatar = _get_default_avatar_uri()
 
     return {
         'title': title,
         'avatar_url': avatar_url,
+        'default_avatar': default_avatar,
         'bg_image': bg_image,
-        'container_width': container_width,
-        'container_height': container_height,
+        'container_width': CONTAINER_WIDTH_DEFAULT,
         'cells': cells,
         'year': year,
         'month': month,
@@ -464,9 +362,6 @@ async def _render_calendar(context: Dict[str, Any]) -> Optional[bytes]:
         browser = await playwright.chromium.launch(
             args=['--no-sandbox', '--disable-setuid-sandbox']
         )
-        # 竖图背景图按真实宽高比锁高度，卡片可能很高（极端竖图能到 1500+px），视口给够余量；
-        # device_scale_factor=2 按 2 倍分辨率截图，配合下面的 PNG（无损）输出，
-        # 避免 OneBot V11/QQ 端把缩略图放大后看起来发糊
         page = await browser.new_page(
             viewport={'width': CONTAINER_WIDTH_MAX + 20, 'height': 1700},
             device_scale_factor=2,
@@ -563,7 +458,7 @@ async def handle_sign_full(bot: Bot, ev: Event):
 
         user_data = state.setdefault(user_key, {})
         user_data[month_key] = list(range(1, days_in_month + 1))
-        context = _build_calendar_context(ev, state, advance_background=True)
+        context = await _build_calendar_context(ev, state)
         _save_state(state)
 
     image = await _render_calendar(context)
@@ -589,7 +484,7 @@ async def handle_sign(bot: Bot, ev: Event):
             already_signed = False
             _do_sign(state, user_key, month_key, today)
             signed_days = _get_user_signs(state, user_key, month_key)
-        context = _build_calendar_context(ev, state, advance_background=True)
+        context = await _build_calendar_context(ev, state)
         _save_state(state)
 
     image = await _render_calendar(context)
@@ -641,7 +536,7 @@ async def handle_make_up_sign(bot: Bot, ev: Event):
             return
         _do_sign(state, user_key, month_key, day)
         signed_days = _get_user_signs(state, user_key, month_key)
-        context = _build_calendar_context(ev, state, advance_background=True)
+        context = await _build_calendar_context(ev, state)
         _save_state(state)
 
     image = await _render_calendar(context)
@@ -657,7 +552,7 @@ async def handle_make_up_sign(bot: Bot, ev: Event):
 async def handle_calendar(bot: Bot, ev: Event):
     async with _STATE_LOCK:
         state = _load_state()
-        context = _build_calendar_context(ev, state, advance_background=True)
+        context = await _build_calendar_context(ev, state)
         _save_state(state)
     image = await _render_calendar(context)
     if image:
