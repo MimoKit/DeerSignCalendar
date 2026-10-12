@@ -112,7 +112,7 @@
       isolation: isolate;
     }
 
-    /* 模糊底图负责填满卡头，前景图使用 contain，保证原图完整可见。 */
+    /* 背景图等比铺满卡头，多余边缘裁切。 */
     .head-bg-blur,
     .head-bg,
     .head-wash {
@@ -135,7 +135,7 @@
     .head-bg {
       z-index: -2;
       display: block;
-      object-fit: contain;
+      object-fit: cover;
       object-position: center;
       background: rgba(231, 239, 234, 0.62);
     }
