@@ -6,28 +6,33 @@
   <title>签到日历</title>
   <style>
     :root {
-      --sheet: #ffffff;
-      --slot: #f5f7fa;
-      --slot-line: #e9edf2;
-      --ink: #101419;
-      --ink-2: #5f6875;
-      --ink-3: #a3abb6;
-      --hair: #eef1f5;
-      --jade: #0e7a62;
-      --jade-soft: #e8f3ef;
+      --sheet: #fffdf8;
+      --sheet-warm: #f7f3e9;
+      --slot: #f1f5f1;
+      --slot-line: #dfe8e1;
+      --ink: #18302d;
+      --ink-2: #5f716e;
+      --ink-3: #9aa9a3;
+      --hair: #e8eee9;
+      --jade: #17685d;
+      --jade-deep: #123f3a;
+      --jade-soft: #e4f0eb;
+      --brass: #c89545;
+      --brass-soft: #f3e8d0;
 
       --sans: 'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei',
         'PingFang SC', 'WenQuanYi Zen Hei', system-ui, sans-serif;
+      --serif: 'Noto Serif SC', 'Source Han Serif SC', 'STSong', serif;
 
       --card-lift:
-        0 0 0 1px rgba(16, 20, 25, 0.04),
-        0 2px 4px rgba(16, 20, 25, 0.03),
-        0 22px 44px -18px rgba(16, 20, 25, 0.18);
+        0 0 0 1px rgba(24, 48, 45, 0.05),
+        0 3px 6px rgba(24, 48, 45, 0.04),
+        0 30px 54px -22px rgba(24, 48, 45, 0.28);
 
       --tile-lift:
-        0 0 0 1px rgba(16, 20, 25, 0.045),
-        0 1px 2px rgba(16, 20, 25, 0.03),
-        0 6px 14px -6px rgba(16, 20, 25, 0.10);
+        0 0 0 1px rgba(24, 48, 45, 0.06),
+        0 2px 3px rgba(24, 48, 45, 0.04),
+        0 8px 16px -8px rgba(24, 48, 45, 0.18);
     }
 
     * {
@@ -48,7 +53,7 @@
     /* 最外层只负责给叠纸和阴影留出呼吸的余地，本身不画任何底色 */
     .container {
       width: 820px;
-      padding: 14px 18px 44px;
+      padding: 20px 24px 52px;
       background: transparent;
     }
 
@@ -66,19 +71,19 @@
       right: 0;
       top: 0;
       bottom: 0;
-      background: var(--sheet);
-      border-radius: 24px;
+      background: var(--sheet-warm);
+      border-radius: 30px;
     }
 
     .deck::before {
-      transform: translateY(12px) scale(0.974);
-      box-shadow: 0 14px 30px -18px rgba(16, 20, 25, 0.3);
+      transform: translateY(14px) scale(0.972);
+      box-shadow: 0 16px 32px -18px rgba(24, 48, 45, 0.32);
       opacity: 0.72;
     }
 
     .deck::after {
-      transform: translateY(23px) scale(0.948);
-      box-shadow: 0 18px 34px -20px rgba(16, 20, 25, 0.26);
+      transform: translateY(27px) scale(0.946);
+      box-shadow: 0 20px 38px -20px rgba(24, 48, 45, 0.28);
       opacity: 0.45;
     }
 
@@ -88,7 +93,7 @@
       position: relative;
       z-index: 1;
       background: var(--sheet);
-      border-radius: 24px;
+      border-radius: 30px;
       box-shadow: var(--card-lift);
       overflow: hidden;
     }
@@ -97,56 +102,90 @@
 
     .head {
       position: relative;
-      padding: 22px 26px 20px;
+      min-height: 214px;
+      padding: 28px 30px 27px;
       display: flex;
-      align-items: center;
-      gap: 15px;
+      align-items: flex-end;
+      gap: 17px;
       color: #fff;
-      background: linear-gradient(118deg, #4c5766 0%, #6d7a8a 55%, #94a1af 100%);
+      background: linear-gradient(135deg, #234d47, #77968d);
+      isolation: isolate;
+    }
+
+    /* 模糊底图负责填满卡头，前景图使用 contain，保证原图完整可见。 */
+    .head-bg-blur,
+    .head-bg,
+    .head-wash {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .head-bg-blur {
+      z-index: -3;
+      background-position: center;
       background-size: cover;
-      background-position: center 30%;
+      filter: blur(18px);
+      opacity: 0.62;
+      transform: scale(1.08);
+    }
+
+    .head-bg {
+      z-index: -2;
+      display: block;
+      object-fit: contain;
+      object-position: center;
+      background: rgba(231, 239, 234, 0.62);
+    }
+
+    .head-wash {
+      z-index: -1;
+      background:
+        linear-gradient(90deg, rgba(11, 48, 43, 0.91) 0%, rgba(18, 63, 58, 0.62) 42%, rgba(18, 63, 58, 0.18) 100%),
+        linear-gradient(180deg, rgba(10, 31, 28, 0.06) 35%, rgba(10, 31, 28, 0.56) 100%);
     }
 
     .head::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(
-        180deg,
-        rgba(14, 19, 28, 0.34) 0%,
-        rgba(14, 19, 28, 0.46) 60%,
-        rgba(14, 19, 28, 0.58) 100%
-      );
+      z-index: -1;
+      background: radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.24), transparent 28%);
     }
 
     /* 背景图没取到时：不加暗纱，直接回到浅白卡头 */
     .head.plain {
-      background: var(--sheet);
+      background: linear-gradient(135deg, #e7f1ec, #fbf6e9);
       color: var(--ink);
     }
 
     .head.plain::before {
-      display: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 88% 18%, rgba(200, 149, 69, 0.18), transparent 25%),
+        radial-gradient(circle at 16% 90%, rgba(23, 104, 93, 0.13), transparent 30%);
     }
 
-    .head > * {
+    .head > *:not(.head-bg-blur):not(.head-bg):not(.head-wash) {
       position: relative;
-      z-index: 1;
+      z-index: 2;
     }
 
     .avatar {
       flex: none;
-      width: 56px;
-      height: 56px;
+      width: 68px;
+      height: 68px;
       border-radius: 50%;
-      padding: 2px;
-      background: rgba(255, 255, 255, 0.94);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+      padding: 3px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 7px 18px rgba(5, 28, 25, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.32);
     }
 
     .head.plain .avatar {
       background: var(--sheet);
-      box-shadow: 0 0 0 1px var(--hair), 0 6px 14px -6px rgba(16, 20, 25, 0.24);
+      box-shadow: 0 0 0 1px var(--hair), 0 8px 16px -6px rgba(24, 48, 45, 0.24);
     }
 
     .avatar img {
@@ -163,12 +202,26 @@
       min-width: 0;
     }
 
+    .eyebrow {
+      margin-bottom: 10px;
+      color: rgba(255, 255, 255, 0.74);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      line-height: 1;
+    }
+
+    .head.plain .eyebrow {
+      color: var(--jade);
+    }
+
     .who .month {
-      font-size: 23px;
-      font-weight: 600;
+      font-family: var(--serif);
+      font-size: 29px;
+      font-weight: 700;
       letter-spacing: 0.01em;
-      line-height: 1.1;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      line-height: 1.05;
+      text-shadow: 0 2px 8px rgba(4, 25, 22, 0.32);
     }
 
     .head.plain .who .month {
@@ -177,10 +230,11 @@
 
     .who .month em {
       font-style: normal;
-      font-size: 13px;
+      font-family: var(--sans);
+      font-size: 14px;
       font-weight: 400;
-      letter-spacing: 0.16em;
-      margin-left: 10px;
+      letter-spacing: 0.12em;
+      margin-left: 12px;
       opacity: 0.82;
     }
 
@@ -190,9 +244,9 @@
     }
 
     .who .tag {
-      margin-top: 7px;
-      font-size: 11px;
-      letter-spacing: 0.28em;
+      margin-top: 9px;
+      font-size: 12px;
+      letter-spacing: 0.15em;
       opacity: 0.82;
     }
 
@@ -205,15 +259,20 @@
       flex: none;
       display: flex;
       align-items: baseline;
-      gap: 6px;
+      gap: 7px;
+      padding: 12px 15px 11px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      border-radius: 17px;
+      background: rgba(255, 255, 255, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
     }
 
     .tally b {
-      font-size: 42px;
-      font-weight: 600;
+      font-size: 43px;
+      font-weight: 700;
       letter-spacing: -0.03em;
       line-height: 0.9;
-      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.34);
+      text-shadow: 0 2px 8px rgba(4, 25, 22, 0.3);
     }
 
     .head.plain .tally b {
@@ -221,8 +280,8 @@
     }
 
     .tally small {
-      font-size: 11px;
-      letter-spacing: 0.1em;
+      font-size: 12px;
+      letter-spacing: 0.08em;
       opacity: 0.82;
     }
 
@@ -231,13 +290,19 @@
       color: var(--ink-3);
     }
 
+    .head.plain .tally {
+      border-color: rgba(23, 104, 93, 0.16);
+      background: rgba(255, 255, 255, 0.58);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
     /* ---------------- 进度：一根发丝线 ---------------- */
 
     .meter {
       position: relative;
-      height: 2px;
-      margin: 0 26px;
-      border-radius: 2px;
+      height: 4px;
+      margin: 0 30px;
+      border-radius: 4px;
       background: var(--hair);
       overflow: hidden;
     }
@@ -246,32 +311,34 @@
       position: absolute;
       inset: 0 auto 0 0;
       display: block;
-      border-radius: 2px;
-      background: var(--jade);
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--jade), var(--brass));
     }
 
     /* ---------------- 卡身 ---------------- */
 
     .body {
-      padding: 22px 26px 24px;
+      padding: 26px 30px 29px;
+      background: var(--sheet);
     }
 
     .weekbar {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
-      gap: 10px;
-      margin-bottom: 13px;
+      gap: 9px;
+      margin-bottom: 12px;
     }
 
     .weekbar span {
       text-align: center;
-      font-size: 11px;
-      letter-spacing: 0.14em;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       color: var(--ink-3);
     }
 
     .weekbar span.rest {
-      color: var(--ink-2);
+      color: var(--brass);
     }
 
     .grid {
@@ -283,10 +350,11 @@
     .tile {
       position: relative;
       aspect-ratio: 1;
-      border-radius: 15px;
+      border-radius: 17px;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
 
     .tile.blank {
@@ -298,6 +366,7 @@
       background: var(--sheet);
       box-shadow: var(--tile-lift);
       align-items: flex-end;
+      border: 1px solid rgba(200, 149, 69, 0.1);
     }
 
     .tile.done .sticker {
@@ -310,10 +379,10 @@
 
     .tile.done .no {
       position: absolute;
-      top: 5px;
-      left: 8px;
+      top: 7px;
+      left: 9px;
       z-index: 2;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--ink-3);
       letter-spacing: 0.02em;
@@ -321,45 +390,71 @@
 
     /* 未签到：沉下去的浅灰凹槽，只有数字 */
     .tile.todo {
-      background: var(--slot);
+      background: linear-gradient(145deg, #f4f7f3, var(--slot));
       box-shadow: inset 0 0 0 1px var(--slot-line);
     }
 
     .tile.todo .no {
-      font-size: 19px;
-      font-weight: 300;
+      font-size: 18px;
+      font-weight: 400;
       color: var(--ink-3);
+    }
+
+    .tile.todo::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--slot-line);
     }
 
     /* 今天：玉色一圈 */
     .tile.today {
       box-shadow:
-        0 0 0 2px var(--jade),
-        0 8px 18px -8px rgba(14, 122, 98, 0.4);
+        0 0 0 2px var(--brass),
+        0 9px 20px -8px rgba(200, 149, 69, 0.45);
     }
 
     .tile.todo.today {
-      background: var(--jade-soft);
-      box-shadow: 0 0 0 2px var(--jade);
+      background: var(--brass-soft);
+      box-shadow: 0 0 0 2px var(--brass);
     }
 
     /* 今天且已签到：玉色圈叠在卡片投影上，不能把堆叠感吃掉 */
     .tile.done.today {
       box-shadow:
-        0 0 0 2px var(--jade),
+        0 0 0 2px var(--brass),
         var(--tile-lift);
     }
 
     .tile.today .no {
-      color: var(--jade);
+      color: var(--brass);
       font-weight: 600;
+    }
+
+    .today-mark {
+      position: absolute;
+      right: 7px;
+      top: 6px;
+      z-index: 3;
+      padding: 2px 5px;
+      border-radius: 6px;
+      background: var(--brass);
+      color: #fffdf8;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
     }
 
     /* ---------------- 卡脚 ---------------- */
 
     .foot {
-      margin-top: 20px;
-      padding-top: 13px;
+      margin-top: 23px;
+      padding-top: 15px;
       border-top: 1px solid var(--hair);
       display: flex;
       align-items: baseline;
@@ -368,16 +463,23 @@
     }
 
     .foot .motto {
-      font-size: 12px;
-      letter-spacing: 0.04em;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
       color: var(--ink-2);
     }
 
     .foot .meta {
       font-size: 10px;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.04em;
       color: var(--ink-3);
       white-space: nowrap;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        scroll-behavior: auto !important;
+      }
     }
   </style>
 </head>
@@ -387,7 +489,11 @@
     <div class="deck">
       <div class="card">
         <div class="head{{ '' if bg_image else ' plain' }}"
-          {%- if bg_image %} style="background-image: url('{{ bg_image }}');"{% endif %}>
+          {%- if bg_image %}>
+          <div class="head-bg-blur" style="background-image: url('{{ bg_image }}');"></div>
+          <img class="head-bg" src="{{ bg_image }}" alt="" />
+          <div class="head-wash"></div>
+          {%- else %}>{% endif %}
           <div class="avatar">
             <img
               src="{{ avatar_url }}"
@@ -396,6 +502,7 @@
             />
           </div>
           <div class="who">
+            <div class="eyebrow">DAILY DEER LOG</div>
             <div class="month">{{ cn[month] }}月<em>{{ year }}</em></div>
             <div class="tag">签到日历</div>
           </div>
@@ -421,6 +528,7 @@
             <div class="tile blank"></div>
             {%- else -%}
             <div class="tile {% if cell.signed %}done{% else %}todo{% endif %}{% if cell.is_today %} today{% endif %}">
+              {%- if cell.is_today %}<span class="today-mark">今日</span>{% endif -%}
               {%- if cell.signed %}<span class="no">{{ cell.day }}</span>
               <img class="sticker" src="{{ cell.img }}" alt="" />
               {%- else %}<span class="no">{{ cell.day }}</span>{% endif %}
