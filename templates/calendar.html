@@ -6,14 +6,28 @@
   <title>签到日历</title>
   <style>
     :root {
-      --accent: #34c98f;
-      --weekend: #ff7a8a;
-      --today: #5b8def;
-      --gold: #ffb86b;
-      --ink: #2d3344;
-      --muted: #6b7280;
-      --tile-bg: linear-gradient(135deg, #f1f0ff 0%, #eaf6ff 100%);
-      --chip-bg: rgba(255, 255, 255, 0.72);
+      --sheet: #ffffff;
+      --slot: #f5f7fa;
+      --slot-line: #e9edf2;
+      --ink: #101419;
+      --ink-2: #5f6875;
+      --ink-3: #a3abb6;
+      --hair: #eef1f5;
+      --jade: #0e7a62;
+      --jade-soft: #e8f3ef;
+
+      --sans: 'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei',
+        'PingFang SC', 'WenQuanYi Zen Hei', system-ui, sans-serif;
+
+      --card-lift:
+        0 0 0 1px rgba(16, 20, 25, 0.04),
+        0 2px 4px rgba(16, 20, 25, 0.03),
+        0 22px 44px -18px rgba(16, 20, 25, 0.18);
+
+      --tile-lift:
+        0 0 0 1px rgba(16, 20, 25, 0.045),
+        0 1px 2px rgba(16, 20, 25, 0.03),
+        0 6px 14px -6px rgba(16, 20, 25, 0.10);
     }
 
     * {
@@ -23,346 +37,402 @@
     }
 
     body {
-      font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+      /* 关键：整页透明，截图出来就是带 alpha 的 PNG */
+      background: transparent;
+      font-family: var(--sans);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 最外层只负责给叠纸和阴影留出呼吸的余地，本身不画任何底色 */
+    .container {
+      width: 820px;
+      padding: 14px 18px 44px;
       background: transparent;
     }
 
-    /* 背景图是全局图：铺满整张卡片（头部+卡身），不局限在某一块区域；
-       卡片宽度固定，background-size: cover 自动裁剪适配 */
-    .container {
-      border-radius: 30px;
-      overflow: hidden;
-      background: linear-gradient(135deg, #8b7ee8 0%, #c08ce0 50%, #f0a6c4 100%);
-      background-size: cover;
-      background-position: center top;
-      box-shadow: 0 20px 44px rgba(31, 41, 68, 0.18);
-      display: flex;
-      flex-direction: column;
-    }
+    /* ---------------- 叠纸：主卡下面探出两张，越往下越窄越淡 ---------------- */
 
-    /* ---------- 头部：浮在全局背景图上，文字靠多层描边阴影保证可读 ---------- */
-
-    .banner {
+    .deck {
       position: relative;
-      padding: 32px 40px 26px;
-      min-height: 158px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 18px;
-      color: #fff;
     }
 
-    .banner-top {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .avatar-frame {
-      flex: none;
-      width: 76px;
-      height: 76px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #ffe08a, #ff8aae);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
-    }
-
-    .avatar-frame .avatar {
-      width: 67px;
-      height: 67px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #fff;
-      display: block;
-    }
-
-    /* 头像加载失败时回退到内置默认头像，由 onerror 直接替换 src */
-
-    /* 标题文字用多层描边阴影（而不是整块蒙版），不管背景图是深色还是浅色都能看清 */
-    .title {
-      font-size: 27px;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      color: #fff;
-      text-shadow:
-        0 0 8px rgba(0, 0, 0, 0.55),
-        1px 1px 2px rgba(0, 0, 0, 0.75),
-        -1px -1px 2px rgba(0, 0, 0, 0.75),
-        1px -1px 2px rgba(0, 0, 0, 0.75),
-        -1px 1px 2px rgba(0, 0, 0, 0.75);
-    }
-
-    .subtitle {
-      font-size: 14px;
-      margin-top: 6px;
-      color: #fff;
-      text-shadow:
-        0 0 6px rgba(0, 0, 0, 0.5),
-        1px 1px 2px rgba(0, 0, 0, 0.7),
-        -1px -1px 2px rgba(0, 0, 0, 0.7);
-    }
-
-    .progress-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .progress-track {
-      flex: 1;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.32);
-      border: 1px solid rgba(0, 0, 0, 0.18);
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #ffe08a, var(--gold));
-    }
-
-    .progress-text {
-      flex: none;
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-      white-space: nowrap;
-      text-shadow:
-        0 0 6px rgba(0, 0, 0, 0.5),
-        1px 1px 2px rgba(0, 0, 0, 0.7),
-        -1px -1px 2px rgba(0, 0, 0, 0.7);
-    }
-
-    /* ---------- 卡身：本身透明，全局背景图从这里继续往下铺，缝隙处可以看到图 ---------- */
-
-    .body {
-      padding: 22px 36px 26px;
-    }
-
-    .weekday-row {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      margin-bottom: 14px;
-      background: var(--chip-bg);
-      backdrop-filter: blur(8px);
-      border-radius: 14px;
-      padding: 8px 4px;
-      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.08);
-    }
-
-    .weekday-cell {
-      text-align: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-    }
-
-    .weekday-cell.weekend {
-      color: var(--weekend);
-    }
-
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 12px;
-    }
-
-    .day-cell {
-      position: relative;
-      aspect-ratio: 1;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(20, 20, 40, 0.12);
-    }
-
-    .day-cell.empty {
-      visibility: hidden;
-      box-shadow: none;
-    }
-
-    .day-cell.today {
-      outline: 3px solid var(--today);
-      outline-offset: 1px;
-    }
-
-    .day-cell.signed .day-bg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .day-cell.signed .cell-shade {
+    .deck::before,
+    .deck::after {
+      content: '';
       position: absolute;
       left: 0;
       right: 0;
+      top: 0;
       bottom: 0;
-      height: 38%;
-      background: linear-gradient(180deg, rgba(15, 20, 35, 0) 0%, rgba(15, 20, 35, 0.62) 100%);
+      background: var(--sheet);
+      border-radius: 24px;
     }
 
-    .day-cell.signed .day-num {
-      position: absolute;
-      left: 8px;
-      bottom: 6px;
-      font-size: 14px;
-      font-weight: 800;
+    .deck::before {
+      transform: translateY(12px) scale(0.974);
+      box-shadow: 0 14px 30px -18px rgba(16, 20, 25, 0.3);
+      opacity: 0.72;
+    }
+
+    .deck::after {
+      transform: translateY(23px) scale(0.948);
+      box-shadow: 0 18px 34px -20px rgba(16, 20, 25, 0.26);
+      opacity: 0.45;
+    }
+
+    /* ---------------- 主卡 ---------------- */
+
+    .card {
+      position: relative;
+      z-index: 1;
+      background: var(--sheet);
+      border-radius: 24px;
+      box-shadow: var(--card-lift);
+      overflow: hidden;
+    }
+
+    /* ---------------- 卡头 ---------------- */
+
+    .head {
+      position: relative;
+      padding: 22px 26px 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
       color: #fff;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      background: linear-gradient(118deg, #4c5766 0%, #6d7a8a 55%, #94a1af 100%);
+      background-size: cover;
+      background-position: center 30%;
     }
 
-    .check-badge {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 2px 6px rgba(52, 201, 143, 0.55);
-      z-index: 2;
-    }
-
-    .check-badge::after {
-      content: '✓';
+    .head::before {
+      content: '';
       position: absolute;
       inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 900;
+      background: linear-gradient(
+        180deg,
+        rgba(14, 19, 28, 0.34) 0%,
+        rgba(14, 19, 28, 0.46) 60%,
+        rgba(14, 19, 28, 0.58) 100%
+      );
     }
 
-    .day-cell.unsigned {
-      background: var(--tile-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .day-cell.unsigned .day-bg {
-      width: 56%;
-      height: 56%;
-      object-fit: contain;
-      opacity: 0.92;
-    }
-
-    .day-cell.unsigned .day-num {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 6px;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--muted);
-    }
-
-    .footer-card {
-      margin-top: 18px;
-      background: rgba(255, 255, 255, 0.55);
-      backdrop-filter: blur(8px);
-      border-radius: 14px;
-      padding: 14px 20px;
-      box-shadow: 0 4px 14px rgba(20, 20, 40, 0.06);
-      text-align: center;
-    }
-
-    .stats-line {
-      font-size: 13px;
+    /* 背景图没取到时：不加暗纱，直接回到浅白卡头 */
+    .head.plain {
+      background: var(--sheet);
       color: var(--ink);
     }
 
-    .stats-line strong {
-      color: var(--accent);
-      font-size: 16px;
+    .head.plain::before {
+      display: none;
     }
 
-    .footer {
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid rgba(45, 51, 68, 0.12);
+    .head > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .avatar {
+      flex: none;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      padding: 2px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+    }
+
+    .head.plain .avatar {
+      background: var(--sheet);
+      box-shadow: 0 0 0 1px var(--hair), 0 6px 14px -6px rgba(16, 20, 25, 0.24);
+    }
+
+    .avatar img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--jade-soft);
+    }
+
+    .who {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .who .month {
+      font-size: 23px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1.1;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .head.plain .who .month {
+      text-shadow: none;
+    }
+
+    .who .month em {
+      font-style: normal;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      margin-left: 10px;
+      opacity: 0.82;
+    }
+
+    .head.plain .who .month em {
+      opacity: 1;
+      color: var(--ink-3);
+    }
+
+    .who .tag {
+      margin-top: 7px;
       font-size: 11px;
+      letter-spacing: 0.28em;
+      opacity: 0.82;
+    }
+
+    .head.plain .who .tag {
+      opacity: 1;
+      color: var(--ink-2);
+    }
+
+    .tally {
+      flex: none;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .tally b {
+      font-size: 42px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 0.9;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.34);
+    }
+
+    .head.plain .tally b {
+      text-shadow: none;
+    }
+
+    .tally small {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      opacity: 0.82;
+    }
+
+    .head.plain .tally small {
+      opacity: 1;
+      color: var(--ink-3);
+    }
+
+    /* ---------------- 进度：一根发丝线 ---------------- */
+
+    .meter {
+      position: relative;
+      height: 2px;
+      margin: 0 26px;
+      border-radius: 2px;
+      background: var(--hair);
+      overflow: hidden;
+    }
+
+    .meter i {
+      position: absolute;
+      inset: 0 auto 0 0;
+      display: block;
+      border-radius: 2px;
+      background: var(--jade);
+    }
+
+    /* ---------------- 卡身 ---------------- */
+
+    .body {
+      padding: 22px 26px 24px;
+    }
+
+    .weekbar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-bottom: 13px;
+    }
+
+    .weekbar span {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--ink-3);
+    }
+
+    .weekbar span.rest {
+      color: var(--ink-2);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+    }
+
+    .tile {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tile.blank {
+      visibility: hidden;
+    }
+
+    /* 已签到：一张独立的小白卡浮在凹槽之上 —— 堆叠感就来自这里 */
+    .tile.done {
+      background: var(--sheet);
+      box-shadow: var(--tile-lift);
+      align-items: flex-end;
+    }
+
+    .tile.done .sticker {
+      width: 100%;
+      height: calc(100% - 15px);
+      object-fit: contain;
+      padding: 0 5px 3px;
+      display: block;
+    }
+
+    .tile.done .no {
+      position: absolute;
+      top: 5px;
+      left: 8px;
+      z-index: 2;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--ink-3);
+      letter-spacing: 0.02em;
+    }
+
+    /* 未签到：沉下去的浅灰凹槽，只有数字 */
+    .tile.todo {
+      background: var(--slot);
+      box-shadow: inset 0 0 0 1px var(--slot-line);
+    }
+
+    .tile.todo .no {
+      font-size: 19px;
+      font-weight: 300;
+      color: var(--ink-3);
+    }
+
+    /* 今天：玉色一圈 */
+    .tile.today {
+      box-shadow:
+        0 0 0 2px var(--jade),
+        0 8px 18px -8px rgba(14, 122, 98, 0.4);
+    }
+
+    .tile.todo.today {
+      background: var(--jade-soft);
+      box-shadow: 0 0 0 2px var(--jade);
+    }
+
+    /* 今天且已签到：玉色圈叠在卡片投影上，不能把堆叠感吃掉 */
+    .tile.done.today {
+      box-shadow:
+        0 0 0 2px var(--jade),
+        var(--tile-lift);
+    }
+
+    .tile.today .no {
+      color: var(--jade);
+      font-weight: 600;
+    }
+
+    /* ---------------- 卡脚 ---------------- */
+
+    .foot {
+      margin-top: 20px;
+      padding-top: 13px;
+      border-top: 1px solid var(--hair);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .foot .motto {
+      font-size: 12px;
       letter-spacing: 0.04em;
-      color: var(--muted);
+      color: var(--ink-2);
+    }
+
+    .foot .meta {
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+      white-space: nowrap;
     }
   </style>
 </head>
 <body>
-  <div
-    class="container"
-    style="width: {{ container_width or 820 }}px;{% if bg_image %} background-image: url('{{ bg_image }}');{% endif %}"
-  >
-    <div class="banner">
-      <div class="banner-top">
-        <div class="avatar-frame">
-          <img
-            class="avatar"
-            src="{{ avatar_url }}"
-            alt="头像"
-            onerror="this.onerror=null; this.src='{{ default_avatar }}';"
-          />
+  {%- set cn = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'] -%}
+  <div class="container" style="width: {{ container_width or 820 }}px;">
+    <div class="deck">
+      <div class="card">
+        <div class="head{{ '' if bg_image else ' plain' }}"
+          {%- if bg_image %} style="background-image: url('{{ bg_image }}');"{% endif %}>
+          <div class="avatar">
+            <img
+              src="{{ avatar_url }}"
+              alt="头像"
+              onerror="this.onerror=null; this.src='{{ default_avatar }}';"
+            />
+          </div>
+          <div class="who">
+            <div class="month">{{ cn[month] }}月<em>{{ year }}</em></div>
+            <div class="tag">签到日历</div>
+          </div>
+          <div class="tally">
+            <b>{{ signed_count }}</b>
+            <small>/ {{ days_in_month }} 天</small>
+          </div>
         </div>
-        <div>
-          <div class="title">{{ title }}</div>
-          <div class="subtitle">开盲盒集图鉴 · 每签到一天解锁一张</div>
-        </div>
-      </div>
-      <div class="progress-row">
-        <div class="progress-track">
-          <div class="progress-fill" style="width: {{ (signed_count / days_in_month * 100) if days_in_month else 0 }}%;"></div>
-        </div>
-        <div class="progress-text">已签 {{ signed_count }} / {{ days_in_month }} 天</div>
-      </div>
-    </div>
 
-    <div class="body">
-      <div class="weekday-row">
-        <div class="weekday-cell">一</div>
-        <div class="weekday-cell">二</div>
-        <div class="weekday-cell">三</div>
-        <div class="weekday-cell">四</div>
-        <div class="weekday-cell">五</div>
-        <div class="weekday-cell weekend">六</div>
-        <div class="weekday-cell weekend">日</div>
-      </div>
+        <div class="meter">
+          <i style="width: {{ (signed_count / days_in_month * 100) | round(2) if days_in_month else 0 }}%;"></i>
+        </div>
 
-      <div class="calendar-grid">
-        {% for cell in cells %}
-        {% if cell.day == 0 %}
-        <div class="day-cell empty"></div>
-        {% elif cell.signed %}
-        <div class="day-cell signed{% if cell.is_today %} today{% endif %}">
-          <img class="day-bg" src="{{ cell.img }}" alt="" />
-          <div class="cell-shade"></div>
-          <div class="check-badge"></div>
-          <div class="day-num">{{ cell.day }}</div>
-        </div>
-        {% else %}
-        <div class="day-cell unsigned{% if cell.is_today %} today{% endif %}">
-          <img class="day-bg" src="{{ cell.img }}" alt="" />
-          <div class="day-num">{{ cell.day }}</div>
-        </div>
-        {% endif %}
-        {% endfor %}
-      </div>
+        <div class="body">
+          <div class="weekbar">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span>
+            <span class="rest">六</span><span class="rest">日</span>
+          </div>
 
-      <div class="footer-card">
-        <div class="stats-line">
-          {{ days_in_month }} 天中已签到 <strong>{{ signed_count }}</strong> 天
-        </div>
-        <div class="footer">
-          Powered by MimoKit · blog.xlinxc.cn
+          <div class="grid">
+            {% for cell in cells %}
+            {%- if cell.day == 0 -%}
+            <div class="tile blank"></div>
+            {%- else -%}
+            <div class="tile {% if cell.signed %}done{% else %}todo{% endif %}{% if cell.is_today %} today{% endif %}">
+              {%- if cell.signed %}<span class="no">{{ cell.day }}</span>
+              <img class="sticker" src="{{ cell.img }}" alt="" />
+              {%- else %}<span class="no">{{ cell.day }}</span>{% endif %}
+            </div>
+            {%- endif %}
+            {% endfor %}
+          </div>
+
+          <div class="foot">
+            <span class="motto">到点了，该鹿了，少年。</span>
+            <span class="meta">Powered by MimoKit · blog.xlinxc.cn</span>
+          </div>
         </div>
       </div>
     </div>

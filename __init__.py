@@ -380,7 +380,7 @@ async def _render_calendar(context: Dict[str, Any]) -> Optional[bytes]:
                 'width': max(1, int(size['width'])),
                 'height': max(1, int(size['height'])),
             })
-        return await container.screenshot(type='png')
+        return await container.screenshot(type='png', omit_background=True)
     finally:
         if browser is not None:
             await browser.close()
